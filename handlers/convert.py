@@ -1,24 +1,19 @@
-from aiogram import types
-from aiogram.dispatcher import Dispatcher
-from utils.pdf_utils import convert_pdf_to_word
-from config import UPLOAD_FOLDER
-import os
+# utils/pdf_utils.py
 
-async def convert_start(message: types.Message):
-    await message.reply("Please upload the PDF you want to convert to Word.")
+from pdf2docx import Converter
 
-async def handle_convert_file(message: types.Message):
-    file_id = message.document.file_id
-    file_info = await message.bot.get_file(file_id)
-    file_path = os.path.join(UPLOAD_FOLDER, message.document.file_name)
-    downloaded_file = await message.bot.download_file(file_info.file_path)
-
-    with open(file_path, "wb") as f:
-        f.write(downloaded_file.read())
-
-    word_file = convert_pdf_to_word(file_path)
-    await message.reply_document(open(word_file, "rb"), caption="Here is your Word file!")
-
-def register_handlers(dp: Dispatcher):
-    dp.register_message_handler(convert_start, commands=["convert_word"])
-    dp.register_message_handler(handle_convert_file, content_types=["document"])
+# Function to convert PDF to Word
+def convert_pdf_to_word(pdf_path, word_path):
+    """
+    Convert a PDF file to a Word document.
+    
+    :param pdf_path: Path to the input PDF file.
+    :param word_path: Path to the output Word file.
+    """
+    try:
+        cv = Converter(pdf_path)
+        cv.convert(word_path, start=0, end=None)
+        cv.close()
+        print(f"Conversion of {pdf_path} to {word_path} completed successfully!")
+    except Exception as e:
+        print(f"Error while converting PDF to Word: {e}")
