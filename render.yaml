@@ -1,7 +1,7 @@
 services:
   - type: web
-    name: telegram-bot
+    name: telegram-pdf-bot
     env: python
     plan: free
-    buildCommand: "pip install -r requirements.txt --use-pep517"
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "python bot.py"
