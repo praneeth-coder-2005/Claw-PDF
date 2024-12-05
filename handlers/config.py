@@ -1,17 +1,7 @@
-API_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
+import os
 
-# File storage
-UPLOAD_FOLDER = "uploads"
-MAX_FILE_SIZE_MB = 20  # Maximum file size for uploads
+# Telegram API Token (replace with your bot token or use Render ENV vars)
+API_TOKEN = os.getenv("API_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN")
 
-# Feature flags (Enable/Disable features)
-FEATURES = {
-    "merge": True,
-    "split": True,
-    "compress": True,
-    "convert": True,
-    "edit": True,
-    "organize": True,
-    "protect": True,
-    "repair": True
-}
+# Directory to store uploaded and processed files
+UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
