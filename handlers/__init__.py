@@ -1,9 +1,7 @@
-from .merge import register_handlers as register_merge
-from .compress import register_handlers as register_compress
+# handlers/__init__.py
+
 from .convert import register_handlers as register_convert
 
-# Combine all handlers into a single function
-def register_all_handlers(dp):
-    register_merge(dp)
-    register_compress(dp)
-    register_convert(dp)
+def register_all_handlers(dispatcher):
+    # Registering all the handlers (you can add more as needed)
+    dispatcher.add_handler(MessageHandler(Filters.document.mime_type("application/pdf"), register_convert))
