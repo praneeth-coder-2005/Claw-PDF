@@ -1,7 +1,6 @@
 # bot.py
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import ParseMode
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.utils import executor
 from handlers import register_all_handlers  # Assuming you will use aiogram's handler structure
