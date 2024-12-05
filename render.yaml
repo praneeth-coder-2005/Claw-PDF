@@ -1,12 +1,12 @@
 services:
   - type: web
-    name: telegram-pdf-bot
+    name: aiogram-pdf-bot
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python bot.py"
     envVars:
       - key: API_TOKEN
-        value: "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
+        value: "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"  # Or leave empty and set via Render Dashboard
       - key: UPLOAD_FOLDER
         value: "/tmp/uploads"
