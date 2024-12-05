@@ -1,19 +1,15 @@
-# utils/pdf_utils.py
+# handlers/convert.py
 
-from pdf2docx import Converter
+from utils.pdf_utils import convert_pdf_to_word
 
-# Function to convert PDF to Word
-def convert_pdf_to_word(pdf_path, word_path):
-    """
-    Convert a PDF file to a Word document.
+# Function to handle conversion requests
+def register_handlers(update, context):
+    # Assuming the update contains the PDF path and desired Word path
+    pdf_path = update.message.document.file_id  # Example, change according to actual logic
+    word_path = f"/path/to/word/{update.message.document.file_id}.docx"
+
+    # Convert PDF to Word
+    convert_pdf_to_word(pdf_path, word_path)
     
-    :param pdf_path: Path to the input PDF file.
-    :param word_path: Path to the output Word file.
-    """
-    try:
-        cv = Converter(pdf_path)
-        cv.convert(word_path, start=0, end=None)
-        cv.close()
-        print(f"Conversion of {pdf_path} to {word_path} completed successfully!")
-    except Exception as e:
-        print(f"Error while converting PDF to Word: {e}")
+    # Send response or handle further logic
+    update.message.reply_text(f"Conversion started for {pdf_path}. The result will be saved as {word_path}.")
