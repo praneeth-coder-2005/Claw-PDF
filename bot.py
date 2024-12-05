@@ -1,18 +1,21 @@
 # bot.py
 
+import logging
 from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.utils import executor
 from handlers import register_all_handlers  # Assuming you will use aiogram's handler structure
 
 API_TOKEN = 'YOUR_BOT_API_TOKEN'  # Replace with your Telegram bot token
 
+# Set up basic logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Initialize bot and dispatcher
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
-dp.middleware.setup(LoggingMiddleware())
 
-# Register handlers (we'll assume 'register_all_handlers' is adjusted for aiogram)
+# Register handlers
 register_all_handlers(dp)
 
 async def on_start(message: types.Message):
