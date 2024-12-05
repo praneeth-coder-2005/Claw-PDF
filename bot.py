@@ -1,19 +1,24 @@
 # bot.py
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from handlers import register_all_handlers
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import ParseMode
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.utils import executor
+from handlers import register_all_handlers  # Assuming you will use aiogram's handler structure
 
-def main():
-    # Initialize the bot with your API token
-    updater = Updater("YOUR_BOT_API_TOKEN", use_context=True)
-    dispatcher = updater.dispatcher
-    
-    # Register all handlers (including the one for PDF to Word conversion)
-    register_all_handlers(dispatcher)
-    
-    # Start the bot
-    updater.start_polling()
-    updater.idle()
+API_TOKEN = 'YOUR_BOT_API_TOKEN'  # Replace with your Telegram bot token
+
+# Initialize bot and dispatcher
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot)
+dp.middleware.setup(LoggingMiddleware())
+
+# Register handlers (we'll assume 'register_all_handlers' is adjusted for aiogram)
+register_all_handlers(dp)
+
+async def on_start(message: types.Message):
+    await message.reply("Hello! I am your PDF-to-Word bot!")
 
 if __name__ == '__main__':
-    main()
+    from aiogram import executor
+    executor.start_polling(dp, skip_updates=True)
