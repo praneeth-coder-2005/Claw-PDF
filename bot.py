@@ -1,24 +1,19 @@
-from aiogram import Bot, Dispatcher, executor, types
-from config import API_TOKEN  # Import bot token
-from handlers import register_all_handlers  # Register all feature handlers
+# bot.py
 
-# Initialize bot and dispatcher
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from handlers import register_all_handlers
 
-# Start command
-@dp.message_handler(commands=["start"])
-async def send_welcome(message: types.Message):
-    await message.reply(
-        "Welcome to the PDF Bot! Here are the available commands:\n"
-        "/merge - Merge multiple PDFs\n"
-        "/compress - Compress a PDF\n"
-        "/convert_word - Convert PDF to Word\n"
-        "/done - Finish the current operation"
-    )
+def main():
+    # Initialize the bot with your API token
+    updater = Updater("YOUR_BOT_API_TOKEN", use_context=True)
+    dispatcher = updater.dispatcher
+    
+    # Register all handlers (including the one for PDF to Word conversion)
+    register_all_handlers(dispatcher)
+    
+    # Start the bot
+    updater.start_polling()
+    updater.idle()
 
-# Register all feature handlers
-register_all_handlers(dp)
-
-if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+if __name__ == '__main__':
+    main()
