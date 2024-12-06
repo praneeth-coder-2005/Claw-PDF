@@ -13,6 +13,8 @@ from telegram.ext import (
 from telegram.error import TelegramError
 from PyPDF2 import PdfReader, PdfWriter, PdfMerger
 from PIL import Image
+import zipfile
+import shutil
 
 # Flask App
 app = Flask(__name__)
@@ -135,18 +137,119 @@ async def done(update: Update, context: CallbackContext):
         cleanup_temp(files + [output_path])
         context.user_data.clear()
 
+    elif task == "split":
+        if not files:
+            await update.message.reply_text("Please send a PDF to split.")
+            return
+
+        file_path = files[0]
+        reader = PdfReader(file_path)
+        for i, page in enumerate(reader.pages):
+            writer = PdfWriter()
+            writer.add_page(page)
+            output_path = os.path.join(TEMP_DIR, f"split_{i + 1}.pdf")
+            with open(output_path, "wb") as f:
+                writer.write(f)
+
+            with open(output_path, "rb") as f:
+                await update.message.reply_document(document=f, filename=f"split_{i + 1}.pdf")
+
+        cleanup_temp(files)
+        context.user_data.clear()
+
+    elif task == "compress":
+        if not files:
+            await update.message.reply_text("Please send a PDF to compress.")
+            return
+
+        file_path = files[0]
+        # Simulate compression (in reality, use a library like pikepdf or Ghostscript)
+        output_path = os.path.join(TEMP_DIR, "compressed.pdf")
+        shutil.copy(file_path, output_path)
+
+        with open(output_path, "rb") as f:
+            await update.message.reply_document(document=f, filename="compressed.pdf")
+
+        cleanup_temp(files + [output_path])
+        context.user_data.clear()
+
+    elif task == "extract_text":
+        if not files:
+            await update.message.reply_text("Please send a PDF to extract text from.")
+            return
+
+        file_path = files[0]
+        reader = PdfReader(file_path)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text()
+
+        output_path = os.path.join(TEMP_DIR, "extracted_text.txt")
+        with open(output_path, "w") as f:
+            f.write(text)
+
+        with open(output_path, "rb") as f:
+            await update.message.reply_document(document=f, filename="extracted_text.txt")
+
+        cleanup_temp(files + [output_path])
+        context.user_data.clear()
+
+    elif task == "extract_images":
+        if not files:
+            await update.message.reply_text("Please send a PDF to extract images from.")
+            return
+
+        file_path = files[0]
+        images = extract_images_from_pdf(file_path)
+        zip_path = os.path.join(TEMP_DIR, "extracted_images.zip")
+
+        with zipfile.ZipFile(zip_path, "w") as zipf:
+            for i, img_path in enumerate(images):
+                zipf.write(img_path, os.path.basename(img_path))
+
+        with open(zip_path, "rb") as f:
+            await update.message.reply_document(document=f, filename="extracted_images.zip")
+
+        cleanup_temp(files + images + [zip_path])
+        context.user_data.clear()
+
+    elif task == "password_protect":
+        if not files:
+            await update.message.reply_text("Please send a PDF to add/remove password protection.")
+            return
+
+        file_path = files[0]
+        password = "password123"  # Set password
+        output_path = os.path.join(TEMP_DIR, "protected.pdf")
+        protect_pdf(file_path, output_path, password)
+
+        with open(output_path, "rb") as f:
+            await update.message.reply_document(document=f, filename="protected.pdf")
+
+        cleanup_temp(files + [output_path])
+        context.user_data.clear()
+
+    elif task == "rotate_pages":
+        if not files:
+            await update.message.reply_text("Please send a PDF to rotate pages.")
+            return
+
+        file_path = files[0]
+        angle = 90  # Rotate by 90 degrees
+        output_path = rotate_pdf(file_path, angle)
+
+        with open(output_path, "rb") as f:
+            await update.message.reply_document(document=f, filename="rotated.pdf")
+
+        cleanup_temp([file_path, output_path])
+        context.user_data.clear()
+
     else:
         await update.message.reply_text("Task not supported for /done command.")
 
-# Rotate Pages
-async def rotate_pages(update: Update, context: CallbackContext):
-    files = context.user_data.get("files", [])
-    if not files:
-        await update.message.reply_text("No files uploaded. Please send a PDF first.")
-        return
+# Helper Functions
 
-    file_path = files[0]
-    angle = 90  # Example rotation angle
+def rotate_pdf(file_path, angle):
     reader = PdfReader(file_path)
     writer = PdfWriter()
 
@@ -158,35 +261,67 @@ async def rotate_pages(update: Update, context: CallbackContext):
     with open(output_path, "wb") as f:
         writer.write(f)
 
-    with open(output_path, "rb") as f:
-        await update.message.reply_document(document=f, filename="rotated.pdf")
+    return output_path
 
-    cleanup_temp([file_path, output_path])
-    context.user_data.clear()
+def protect_pdf(input_path, output_path, password):
+    reader = PdfReader(input_path)
+    writer = PdfWriter()
 
-# Cleanup Temporary Files
-def cleanup_temp(file_list):
-    for file in file_list:
+    for page in reader.pages:
+        writer.add_page(page)
+
+    writer.encrypt(password)
+
+    with open(output_path, "wb") as f:
+        writer.write(f)
+
+def extract_images_from_pdf(pdf_path):
+    images = []
+    pdf_reader = PdfReader(pdf_path)
+
+    for page_num, page in enumerate(pdf_reader.pages):
+        xObject = page["/Resources"].get("/XObject")
+        if xObject:
+            for obj in xObject:
+                if xObject[obj]["/Subtype"] == "/Image":
+                    size = (xObject[obj]["/Width"], xObject[obj]["/Height"])
+                    image_data = xObject[obj].get_data()
+
+                    image_path = os.path.join(TEMP_DIR, f"image_{page_num + 1}_{obj[1:]}.jpg")
+                    with open(image_path, "wb") as img_file:
+                        img_file.write(image_data)
+                    images.append(image_path)
+
+    return images
+
+# Clean up temporary files
+def cleanup_temp(files):
+    for file in files:
         if os.path.exists(file):
             os.remove(file)
 
-# Flask Webhook Route
+# Webhook setup
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(), application.bot)
+    json_str = request.get_data().decode("UTF-8")
+    update = Update.de_json(json_str, application.bot)
     application.process_update(update)
     return "OK", 200
 
-# Main Function
+# Set up Webhook
+def set_webhook():
+    application.bot.setWebhook(WEBHOOK_URL)
+
 if __name__ == "__main__":
+    # Setup Command Handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("done", done))
-    application.add_handler(MessageHandler(filters.Document.ALL, collect_files))
     application.add_handler(CallbackQueryHandler(handle_buttons))
+    application.add_handler(MessageHandler(filters.Document.ALL, collect_files))
+    application.add_handler(CommandHandler("done", done))
 
-    port = int(os.environ.get("PORT", 8443))
-    application.run_webhook(
-        listen="0.0.0.0", port=port, url_path=BOT_TOKEN, webhook_url=WEBHOOK_URL
-    )
-    app.run(host="0.0.0.0", port=port)
+    # Start the Webhook
+    set_webhook()
+
+    # Start the Flask app to handle the webhook
+    app.run(host="0.0.0.0", port=80)
