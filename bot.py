@@ -71,10 +71,10 @@ async def collect_files(update: Update, context: CallbackContext):
     if file and file.mime_type == "application/pdf":
         file_path = os.path.join(TEMP_DIR, file.file_name)
 
-        # Properly await get_file and download it
         try:
+            # Properly await and download the file
             file_data = await file.get_file()
-            await file_data.download(custom_path=file_path)
+            await file_data.download_to_drive(file_path)
 
             context.user_data["merge_files"].append(file_path)
             await update.message.reply_text(f"Added {file.file_name}. Send more files or type /done to merge.")
