@@ -1,6 +1,6 @@
 import os
-from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, CallbackQueryHandler, filters
+from telegram import Update, Bot
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, filters
 from telegram.error import TelegramError
 from PyPDF2 import PdfMerger
 from flask import Flask, request
@@ -86,22 +86,6 @@ async def collect_files(update: Update, context: CallbackContext):
 # Complete Merge
 async def done(update: Update, context: CallbackContext):
     await merge_pdfs(update, context)
-
-# Split PDFs
-async def split_pdf(update: Update, context: CallbackContext):
-    await update.message.reply_text("Send me the PDF file you want to split.")
-
-# Handle File Uploads
-async def handle_file_upload(update: Update, context: CallbackContext):
-    file = update.message.document
-    if file.mime_type == "application/pdf":
-        file_path = os.path.join(TEMP_DIR, file.file_name)
-        file_data = await file.get_file()
-        await file_data.download(custom_path=file_path)
-        await update.message.reply_text(f"Received {file.file_name}. Now processing...")
-        # Implement PDF handling logic
-    else:
-        await update.message.reply_text("Please upload a valid PDF file.")
 
 # --- Flask Webhook Route ---
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
