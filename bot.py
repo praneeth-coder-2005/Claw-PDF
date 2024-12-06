@@ -220,7 +220,7 @@ async def done(update: Update, context: CallbackContext):
 
         file_path = files[0]
         password = "password123"  # Set password
-        output_path = os.path.join(TEMP_DIR, "protected.pdf")
+        output_path = os.path.join(TEMP_DIR,output_path = os.path.join(TEMP_DIR, "protected.pdf")
         protect_pdf(file_path, output_path, password)
 
         with open(output_path, "rb") as f:
@@ -309,8 +309,8 @@ def webhook():
     return "OK", 200
 
 # Set up Webhook
-def set_webhook():
-    application.bot.setWebhook(WEBHOOK_URL)
+async def set_webhook():
+    await application.bot.setWebhook(WEBHOOK_URL)
 
 if __name__ == "__main__":
     # Setup Command Handlers
@@ -321,7 +321,7 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("done", done))
 
     # Start the Webhook
-    set_webhook()
+    application.loop.run_until_complete(set_webhook())
 
     # Start the Flask app to handle the webhook
     app.run(host="0.0.0.0", port=80)
