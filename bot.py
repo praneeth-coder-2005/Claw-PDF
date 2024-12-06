@@ -1,18 +1,25 @@
 import os
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, CallbackQueryHandler, filters
-from PyPDF2 import PdfMerger, PdfReader, PdfWriter
-from pdf2image import convert_from_path
-import img2pdf
-import tempfile
+from telegram.error import TelegramError
+from PyPDF2 import PdfMerger
+from flask import Flask, request
 
-# Bot Token from BotFather
+# Initialize Flask App
+app = Flask(__name__)
+
+# Bot Token and Render URL
 BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
+WEBHOOK_URL = f"https://claw-pdf.onrender.com/{BOT_TOKEN}"
 
 # Temporary directory for processing files
 TEMP_DIR = "temp_files"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+# Application instance
+application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+# --- Bot Commands and Handlers ---
 
 # Start Command
 async def start(update: Update, context: CallbackContext):
@@ -22,7 +29,6 @@ async def start(update: Update, context: CallbackContext):
         "Use the commands to get started:\n"
         "/help - List of commands"
     )
-
 
 # Help Command
 async def help_command(update: Update, context: CallbackContext):
@@ -35,7 +41,6 @@ async def help_command(update: Update, context: CallbackContext):
         "/extract_text - Extract text from a PDF (OCR)\n"
         "/help - Show this help message\n"
     )
-
 
 # Merge PDFs
 async def merge_pdfs(update: Update, context: CallbackContext):
@@ -54,10 +59,10 @@ async def merge_pdfs(update: Update, context: CallbackContext):
         with open(output_path, "rb") as f:
             await update.message.reply_document(document=f, filename="merged.pdf")
 
+        # Clear user data
         context.user_data["merge_files"] = []
 
-
-# Collecting Files
+# Collect Files
 async def collect_files(update: Update, context: CallbackContext):
     if not context.user_data.get("merge_files"):
         context.user_data["merge_files"] = []
@@ -65,47 +70,61 @@ async def collect_files(update: Update, context: CallbackContext):
     file = update.message.document
     if file and file.mime_type == "application/pdf":
         file_path = os.path.join(TEMP_DIR, file.file_name)
-        await file.get_file().download_to_drive(file_path)
-        context.user_data["merge_files"].append(file_path)
-        await update.message.reply_text(f"Added {file.file_name}. Send more files or type /done to merge.")
+
+        # Properly await get_file and download it
+        try:
+            file_data = await file.get_file()
+            await file_data.download(custom_path=file_path)
+
+            context.user_data["merge_files"].append(file_path)
+            await update.message.reply_text(f"Added {file.file_name}. Send more files or type /done to merge.")
+        except TelegramError as e:
+            await update.message.reply_text(f"Failed to download file: {str(e)}")
     else:
         await update.message.reply_text("Please send a valid PDF file.")
-
 
 # Complete Merge
 async def done(update: Update, context: CallbackContext):
     await merge_pdfs(update, context)
 
-
 # Split PDFs
 async def split_pdf(update: Update, context: CallbackContext):
     await update.message.reply_text("Send me the PDF file you want to split.")
 
-
-# Handling File Uploads
+# Handle File Uploads
 async def handle_file_upload(update: Update, context: CallbackContext):
     file = update.message.document
     if file.mime_type == "application/pdf":
         file_path = os.path.join(TEMP_DIR, file.file_name)
-        await file.get_file().download_to_drive(file_path)
+        file_data = await file.get_file()
+        await file_data.download(custom_path=file_path)
         await update.message.reply_text(f"Received {file.file_name}. Now processing...")
         # Implement PDF handling logic
     else:
         await update.message.reply_text("Please upload a valid PDF file.")
 
+# --- Flask Webhook Route ---
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(), application.bot)
+    application.process_update(update)
+    return "OK", 200
 
-# Main Function
-def main():
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-
+# --- Main Function ---
+if __name__ == "__main__":
+    # Add Handlers to Application
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("merge", merge_pdfs))
     application.add_handler(CommandHandler("done", done))
     application.add_handler(MessageHandler(filters.Document.ALL, collect_files))
 
-    application.run_polling()
-
-
-if __name__ == "__main__":
-    main()
+    # Set Webhook for Render
+    port = int(os.environ.get("PORT", 8443))
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=BOT_TOKEN,
+        webhook_url=WEBHOOK_URL
+    )
+    app.run(host="0.0.0.0", port=port)
