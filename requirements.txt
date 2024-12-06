@@ -4,3 +4,4 @@ pdf2image
 img2pdf
 reportlab
 pytesseract
+flask
