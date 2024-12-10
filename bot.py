@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 # --- Replace with your actual bot token ---
-API_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
+API_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'  # Replace with your actual token
 
 # --- Set up logging ---
 logging.basicConfig(
@@ -33,13 +33,123 @@ user_states = {}  # To track user's current operation
 UPLOAD_PDF, UPLOAD_PDF_2 = range(2)  # Conversation states for file uploads
 
 # --- Keyboard functions ---
-# ... (Include all the keyboard functions from the previous response) ...
+
+def build_main_menu_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton("Convert PDF", callback_data='convert'),
+            InlineKeyboardButton("Organize PDF", callback_data='organize')
+        ],
+        [
+            InlineKeyboardButton("Optimize PDF", callback_data='optimize'),
+            InlineKeyboardButton("Edit PDF", callback_data='edit')
+        ],
+        [
+            InlineKeyboardButton("PDF Security", callback_data='security'),
+            InlineKeyboardButton("Other Tools", callback_data='other')
+        ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def build_convert_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("PDF to Word", callback_data='pdf_to_word')],
+        [InlineKeyboardButton("PDF to Excel", callback_data='pdf_to_excel')],
+        [InlineKeyboardButton("PDF to PowerPoint", callback_data='pdf_to_powerpoint')],
+        [InlineKeyboardButton("Word to PDF", callback_data='word_to_pdf')],
+        [InlineKeyboardButton("Excel to PDF", callback_data='excel_to_pdf')],
+        [InlineKeyboardButton("PowerPoint to PDF", callback_data='powerpoint_to_pdf')],
+        [InlineKeyboardButton("JPG to PDF", callback_data='jpg_to_pdf')],
+        [InlineKeyboardButton("PDF to JPG", callback_data='pdf_to_jpg')],
+        [InlineKeyboardButton("PDF to PDF/A", callback_data='pdf_to_pdfa')],
+        [InlineKeyboardButton("HTML to PDF", callback_data='html_to_pdf')],
+        # ... add other convert options ...
+        [InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+def build_organize_menu_keyboard():
+    keyboard = [
+        [InlineKeyboardButton("Merge PDF", callback_data='merge_pdf')],
+        [InlineKeyboardButton("Split PDF", callback_data='split_pdf')],
+        [InlineKeyboardButton("Compress PDF", callback_data='compress_pdf')],
+        [InlineKeyboardButton("Rotate PDF", callback_data='rotate_pdf')],
+        [InlineKeyboardButton("Add page numbers", callback_data='add_page_numbers')],
+        [InlineKeyboardButton("Add watermark", callback_data='add_watermark')],
+        [InlineKeyboardButton("Remove PDF pages", callback_data='remove_pdf_pages')],
+        [InlineKeyboardButton("Reorder PDF pages", callback_data='reorder_pdf_pages')],
+        [InlineKeyboardButton("Organize PDF pages", callback_data='organize_pdf_pages')],
+        # ... add other organize options ...
+        [InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+# ... (Add other keyboard functions for optimize, edit, security, other) ...
+
 
 # --- Command and Callback Handlers ---
-# ... (Include the start and button handlers from the previous response) ...
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a message when the command /start is issued."""
+    await update.message.reply_text('Welcome to the Claw PDF Bot!', reply_markup=build_main_menu_keyboard())
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Parses the CallbackQuery and updates the message text."""
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+
+    # --- Menu navigation ---
+    if query.data == 'convert':
+        await query.edit_message_text(text="Choose a conversion option:", reply_markup=build_convert_menu_keyboard())
+    elif query.data == 'organize':
+        await query.edit_message_text(text="Choose an organization option:", reply_markup=build_organize_menu_keyboard())
+    # ... (Handle other menu options - optimize, edit, security, other) ...
+    elif query.data == 'main_menu':
+        await query.edit_message_text(text="Claw PDF Bot Main Menu:", reply_markup=build_main_menu_keyboard())
+
+    # --- Feature actions ---
+    elif query.data == 'pdf_to_word':
+        user_states[user_id] = 'pdf_to_word'
+        await query.edit_message_text(text="Please upload the PDF file you want to convert to Word.", reply_markup=ForceReply())
+    # ... (Add other feature actions - pdf_to_excel, merge_pdf, etc.) ...
+
 
 # --- Conversation handler for multi-file uploads (e.g., merge_pdf) ---
-# ... (Include the upload_pdf and upload_pdf_2 handlers from the previous response) ...
+
+async def upload_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the first PDF upload in a multi-file upload process."""
+    user_id = update.message.from_user.id
+    file = await update.message.document.get_file()
+    # ... (Download the file and store it in memory) ...
+    context.user_data['pdf1'] = BytesIO(await file.download_as_bytearray())
+    await update.message.reply_text("Please upload the second PDF file.")
+    return UPLOAD_PDF_2  # Move to the next state to get the second file
+
+async def upload_pdf_2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the second PDF upload in a multi-file upload process."""
+    user_id = update.message.from_user.id
+    file = await update.message.document.get_file()
+    # ... (Download the file and store it in memory) ...
+    context.user_data['pdf2'] = BytesIO(await file.download_as_bytearray())
+
+    # --- Now you have both files, proceed with the merge operation ---
+    await update.message.reply_text("Merging your PDF files...")
+    try:
+        merger = PdfMerger()
+        merger.append(context.user_data['pdf1'])
+        merger.append(context.user_data['pdf2'])
+        output_buffer = BytesIO()
+        merger.write(output_buffer)
+        output_buffer.seek(0)
+        await update.message.reply_document(output_buffer, filename="merged.pdf")
+    except Exception as e:
+        logging.error(f"Error merging PDFs: {e}")
+        await update.message.reply_text("An error occurred while merging your PDFs.")
+
+    del user_states[user_id]  # Clear the user's state
+    return ConversationHandler.END  # End the conversation
+
 
 # --- Message handler for single file uploads ---
 
@@ -58,51 +168,7 @@ async def handle_pdf_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # You might need to use OCR and other techniques for accurate conversion
                 # Consider using libraries like 'pdfminer' or 'pytesseract' for OCR
 
-            elif action == 'pdf_to_excel':
-                await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- Similar to PDF to Word, this requires advanced techniques
-                # You might need to analyze the PDF structure and extract tabular data
-                # Libraries like 'camelot' or 'tabula-py' can be helpful
-
-            elif action == 'pdf_to_powerpoint':
-                await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- This involves extracting text and images from PDF and creating slides
-                # Libraries like 'python-pptx' can be used for PowerPoint generation
-
-            elif action == 'merge_pdf':
-                await update.message.reply_text("Your PDF files are being merged. Please wait...")
-                merger = PdfMerger()
-                merger.append(pdf_data)
-                merger.append(context.user_data['pdf1'])  # Assuming you stored the first PDF in user_data
-                output_buffer = BytesIO()
-                merger.write(output_buffer)
-                output_buffer.seek(0)
-                await update.message.reply_document(output_buffer, filename="merged.pdf")
-
-            elif action == 'split_pdf':
-                await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- You'll need to get the split point (page number) from the user
-                # Then use PyPDF2 to split the PDF into two or more parts
-
-            elif action == 'compress_pdf':
-                await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- PDF compression can be achieved by reducing image quality, 
-                # downsampling images, and optimizing fonts.
-                # Libraries like 'PyPDF2' and 'Ghostscript' can be used
-
-            elif action == 'rotate_pdf':
-                await update.message.reply_text("Please enter the rotation angle (90, 180, or 270 degrees):", reply_markup=ForceReply())
-                user_states[user_id] = 'rotate_pdf_angle'  # Move to the next state to get the angle
-
-            elif action == 'add_page_numbers':
-                await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- You can use PyPDF2 and reportlab to add page numbers to each page
-
-            elif action == 'add_watermark':
-                await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- Use PyPDF2 and reportlab to add a watermark (text or image) to each page
-
-            # ... (Add other actions here - repair_pdf, unlock_pdf, etc.) ...
+            # ... (Add other feature actions - pdf_to_excel, rotate_pdf, etc.) ...
 
         except Exception as e:
             logging.error(f"Error processing PDF: {e}")
@@ -114,32 +180,64 @@ async def handle_pdf_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_rotation_angle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles the rotation angle input for rotate_pdf."""
     user_id = update.message.from_user.id
-    angle = int(update.message.text)  # Get the angle from the user's message
-    if angle in (90, 180, 270):
-        try:
+    try:
+        angle = int(update.message.text)  # Get the angle from the user's message
+        if angle in (90, 180, 270):
             # ... (Get the original PDF data from user_data or previous step) ...
-            pdf_reader = PdfReader(pdf_data)
-            pdf_writer = PdfWriter()
-            for page in pdf_reader.pages:
-                page.rotate(angle)
-                pdf_writer.add_page(page)
-            output_buffer = BytesIO()
-            pdf_writer.write(output_buffer)
-            output_buffer.seek(0)
-            await update.message.reply_document(output_buffer, filename="rotated.pdf")
-        except Exception as e:
-            logging.error(f"Error rotating PDF: {e}")
-            await update.message.reply_text("An error occurred while rotating your PDF.")
-    else:
-        await update.message.reply_text("Invalid rotation angle. Please enter 90, 180, or 270.")
-    del user_states[user_id]
+            # For example, if you stored it in the previous handler:
+            pdf_data = context.user_data.get('pdf_data') 
+            if pdf_data:
+                pdf_reader = PdfReader(pdf_data)
+                pdf_writer = PdfWriter()
+                for page in pdf_reader.pages:
+                    page.rotate(angle)
+                    pdf_writer.add_page(page)
+                output_buffer = BytesIO()
+                pdf_writer.write(output_buffer)
+                output_buffer.seek(0)
+                await update.message.reply_document(output_buffer, filename="rotated.pdf")
+            else:
+                await update.message.reply_text("Please upload the PDF file first.")
+        else:
+            await update.message.reply_text("Invalid rotation angle. Please enter 90, 180, or 270.")
+    except ValueError:
+        await update.message.reply_text("Invalid input. Please enter a valid number for the rotation angle.")
+    except Exception as e:
+        logging.error(f"Error rotating PDF: {e}")
+        await update.message.reply_text("An error occurred while rotating your PDF.")
+    finally:
+        del user_states[user_id]
 
 
 def main():
     """Start the bot."""
-    # ... (Register handlers - same as in the previous response) ...
+    application = ApplicationBuilder().token(API_TOKEN).build()
 
-    # --- Add the new handler for rotation angle input ---
+    # --- Register handlers ---
+    application.add_handler(CommandHandler('start', start))
+
+    # --- CallbackQueryHandlers for all patterns ---
+    application.add_handler(CallbackQueryHandler(button, pattern='convert'))
+    application.add_handler(CallbackQueryHandler(button, pattern='organize'))
+    # ... (Add CallbackQueryHandlers for other menu options) ...
+    application.add_handler(CallbackQueryHandler(button, pattern='main_menu'))
+    # ... (Add CallbackQueryHandlers for feature actions) ...
+
+    # --- Conversation handler for multi-file uploads ---
+    conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(button, pattern='merge_pdf')],
+        states={
+            UPLOAD_PDF: [MessageHandler(filters.Document.MimeType("application/pdf"), upload_pdf)],
+            UPLOAD_PDF_2: [MessageHandler(filters.Document.MimeType("application/pdf"), upload_pdf_2)],
+        },
+        fallbacks=[],  # You can add fallback handlers if needed
+    )
+    application.add_handler(conv_handler)
+
+    # --- Message handler for single file uploads ---
+    application.add_handler(MessageHandler(filters.Document.MimeType("application/pdf"), handle_pdf_upload))
+
+    # --- Add the handler for rotation angle input ---
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_rotation_angle))
 
     # Run the bot until you press Ctrl-C
