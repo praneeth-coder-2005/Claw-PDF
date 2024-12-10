@@ -10,7 +10,7 @@ from telegram.ext import (
 )
 
 # Replace 'YOUR_API_TOKEN' with your actual bot token from BotFather
-API_TOKEN = 'YOUR_API_TOKEN'
+API_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
 
 # Set up logging
 logging.basicConfig(
