@@ -18,7 +18,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Bot token 
+# Bot token
 BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
 
 
@@ -66,7 +66,7 @@ def convert_image(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater(BOT_TOKEN)
+    updater = Updater(BOT_TOKEN, use_context=True)  # Add use_context=True
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -89,3 +89,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    
