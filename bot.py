@@ -66,7 +66,7 @@ def convert_image(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater(BOT_TOKEN, use_context=True)  # Add use_context=True
+    updater = Updater(BOT_TOKEN)  # Removed use_context=True
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
