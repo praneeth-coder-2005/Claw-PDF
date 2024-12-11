@@ -4,7 +4,7 @@ from PIL import Image
 import io
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('YOUR_BOT_TOKEN')
+bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
 
 def create_pdf(image_file):
     """Converts an image file to a PDF file."""
