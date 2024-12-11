@@ -9,7 +9,7 @@ logging.basicConfig(filename='telegram_bot.log', level=logging.ERROR,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('YOUR_BOT_TOKEN')
+bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
 
 def create_pdf(image_file):
     """Converts an image file to a PDF file."""
