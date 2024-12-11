@@ -1,148 +1,81 @@
-import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from PIL import Image
-import io
 import logging
-from PyPDF2 import PdfMerger
+import os
+from io import BytesIO
+from telegram import Update, ForceReply
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import img2pdf
 
-# Configure logging
-logging.basicConfig(filename='telegram_bot.log', level=logging.ERROR, 
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+# Enable logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+)
+
+logger = logging.getLogger(__name__)
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
+BOT_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
 
-# Global list to store PDF files for merging
-pdf_files_to_merge = []
+# Define a few command handlers. These usually take the two arguments update and
+# context.
+def start(update: Update, context: CallbackContext) -> None:
+    """Send a message when the command /start is issued."""
+    user = update.effective_user
+    update.message.reply_markdown_v2(
+        fr'Hi {user.mention_markdown_v2()}\!',
+        reply_markup=ForceReply(selective=True),
+    )
 
-def create_pdf(image_file):
-    """Converts an image file to a PDF file."""
-    try:
-        image = Image.open(image_file)
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='PDF', resolution=100.0) 
-        img_byte_arr = img_byte_arr.getvalue()
-        return img_byte_arr
-    except Exception as e:
-        logging.error(f"Error converting image to PDF: {e}")
-        return None
+def help_command(update: Update, context: CallbackContext) -> None:
+    """Send a message when the command /help is issued."""
+    update.message.reply_text('Help!')
 
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    """Sends a welcome message with inline buttons."""
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    convert_button = InlineKeyboardButton("Convert Image to PDF", callback_data="convert_image")
-    merge_button = InlineKeyboardButton("Merge PDFs", callback_data="merge_pdfs")
-    keyboard.add(convert_button, merge_button)
+def convert_image(update: Update, context: CallbackContext) -> None:
+    """Convert an image to PDF and send it back to the user."""
+    if not update.message.photo:
+        update.message.reply_text("Please send me an image to convert.")
+        return
 
-    bot.reply_to(message, "Hello! I can convert images to PDF files and merge PDFs. \n\n"
-                          "To convert, send me an image. To merge, click the 'Merge PDFs' button.", reply_markup=keyboard)
+    # Get the largest photo
+    photo = update.message.photo[-1]
+    file_id = photo.file_id
+    new_file = context.bot.get_file(file_id)
 
-@bot.message_handler(content_types=['photo'])
-def handle_image(message):
-    """Handles photo messages and converts them to PDF."""
-    try:
-        # Get the file ID of the largest photo size
-        file_id = message.photo[-1].file_id
-        file_info = bot.get_file(file_id)
+    # Download the image
+    image_data = BytesIO(new_file.download_as_bytearray())
 
-        # Download the image file
-        downloaded_file = bot.download_file(file_info.file_path)
+    # Convert the image to PDF
+    pdf_bytes = img2pdf.convert(image_data.getvalue())
 
-        # Convert the image to PDF
-        pdf_file = create_pdf(io.BytesIO(downloaded_file))
+    # Send the PDF back to the user
+    update.message.reply_document(
+        document=pdf_bytes,
+        filename="converted.pdf",
+        caption="Here is your converted PDF file."
+    )
 
-        if pdf_file:
-            # Create inline keyboard with download button
-            keyboard = InlineKeyboardMarkup()
-            download_button = InlineKeyboardButton("Download PDF", callback_data="download_pdf")
-            keyboard.add(download_button)
+def main() -> None:
+    """Start the bot."""
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(BOT_TOKEN)
 
-            # Send the PDF file with the inline keyboard
-            bot.send_document(message.chat.id, pdf_file, filename="converted_image.pdf", caption="Here's your PDF file!", reply_markup=keyboard)
-        else:
-            bot.reply_to(message, "Sorry, I couldn't convert your image to PDF. Please try again later.")
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
 
-    except Exception as e:
-        logging.error(f"Error handling image: {e}")
-        bot.reply_to(message, "Sorry, something went wrong. Please try again later.")
+    # on different commands - answer in Telegram
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("help", help_command))
 
-@bot.message_handler(content_types=['document'])
-def handle_pdf(message):
-    """Handles PDF documents for merging."""
-    try:
-        if message.document.mime_type == 'application/pdf':
-            file_id = message.document.file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
+    # on non command i.e message - convert the image to pdf
+    dispatcher.add_handler(MessageHandler(Filters.photo, convert_image))
 
-            # Use io.BytesIO to handle the downloaded file
-            pdf_file = io.BytesIO(downloaded_file) 
-            pdf_files_to_merge.append(pdf_file)
+    # Start the Bot
+    updater.start_polling()
 
-            # Ask if the user wants to merge immediately after adding a PDF
-            keyboard = InlineKeyboardMarkup()
-            merge_now_button = InlineKeyboardButton("Merge Now", callback_data="merge_now")
-            keyboard.add(merge_now_button)
-            bot.reply_to(message, "PDF file received and added to the merge list! Do you want to merge now?", reply_markup=keyboard)
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
 
-        else:
-            bot.reply_to(message, "Please send a PDF file.")
-    except Exception as e:
-        logging.error(f"Error handling PDF document: {e}")
-        bot.reply_to(message, "Sorry, something went wrong. Please try again later.")
-
-@bot.callback_query_handler(func=lambda call: True)
-def handle_callback_query(call):
-    """Handles callback queries from inline buttons."""
-    try:
-        if call.data == "download_pdf":
-            # Resend the PDF file 
-            file_id = call.message.document.file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-            pdf_file = create_pdf(io.BytesIO(downloaded_file))
-            if pdf_file:
-                bot.send_document(call.message.chat.id, pdf_file, caption="Here's your PDF file again!")
-            else:
-                bot.answer_callback_query(call.id, "Sorry, I couldn't retrieve the PDF file.")
-        elif call.data == "convert_image":
-            bot.send_message(call.message.chat.id, "Please send me the image you want to convert to PDF.") 
-        elif call.data == "merge_pdfs":
-            # Send a message with an inline button to start sending PDFs
-            keyboard = InlineKeyboardMarkup()
-            send_pdf_button = InlineKeyboardButton("Send PDFs", callback_data="send_pdfs")
-            keyboard.add(send_pdf_button)
-            bot.send_message(call.message.chat.id, "Please send the PDF files you want to merge.", reply_markup=keyboard)
-        elif call.data == "send_pdfs":
-            bot.send_message(call.message.chat.id, "Start sending your PDF files now!")
-        elif call.data == "merge_now":
-            if len(pdf_files_to_merge) < 2:
-                bot.answer_callback_query(call.id, "Please send at least 2 PDF files to merge.")
-            else:
-                try:
-                    merger = PdfMerger()
-                    for pdf_file in pdf_files_to_merge:
-                        merger.append(pdf_file)
-
-                    merged_pdf = io.BytesIO()
-                    merger.write(merged_pdf)
-                    # No need to close the merger when using in-memory streams
-                    merged_pdf.seek(0)  # Reset the file pointer to the beginning
-
-                    bot.send_document(call.message.chat.id, merged_pdf, caption="Here's your merged PDF!")
-                    pdf_files_to_merge.clear()  # Clear the list after merging
-
-                except Exception as e:
-                    logging.error(f"Error merging PDFs: {e}")
-                    bot.answer_callback_query(call.id, "Sorry, something went wrong while merging the PDFs.")
-    except Exception as e:
-        logging.error(f"Error handling callback query: {e}")
-        bot.answer_callback_query(call.id, "Sorry, something went wrong.")
-
-# Start the bot
-try:
-    bot.polling()
-except Exception as e:
-    logging.error(f"Bot polling failed: {e}")
-      
+if __name__ == '__main__':
+    main()
+  
