@@ -10,7 +10,7 @@ logging.basicConfig(filename='telegram_bot.log', level=logging.ERROR,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
+bot = telebot.TeleBot('YOUR_BOT_TOKEN')
 
 # Global list to store PDF files for merging
 pdf_files_to_merge = []
@@ -20,7 +20,7 @@ def create_pdf(image_file):
     try:
         image = Image.open(image_file)
         img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='PDF')
+        image.save(img_byte_arr, format='PDF', resolution=100.0) 
         img_byte_arr = img_byte_arr.getvalue()
         return img_byte_arr
     except Exception as e:
@@ -30,13 +30,13 @@ def create_pdf(image_file):
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     """Sends a welcome message with inline buttons."""
-    keyboard = InlineKeyboardMarkup(row_width=2)  # Use row_width to arrange buttons
+    keyboard = InlineKeyboardMarkup(row_width=2)
     convert_button = InlineKeyboardButton("Convert Image to PDF", callback_data="convert_image")
     merge_button = InlineKeyboardButton("Merge PDFs", callback_data="merge_pdfs")
-    keyboard.add(convert_button, merge_button)  # Add both buttons
+    keyboard.add(convert_button, merge_button)
 
     bot.reply_to(message, "Hello! I can convert images to PDF files and merge PDFs. \n\n"
-                          "To convert, send me an image. To merge, send multiple PDF files.", reply_markup=keyboard)
+                          "To convert, send me an image. To merge, click the 'Merge PDFs' button.", reply_markup=keyboard)
 
 @bot.message_handler(content_types=['photo'])
 def handle_image(message):
@@ -59,7 +59,7 @@ def handle_image(message):
             keyboard.add(download_button)
 
             # Send the PDF file with the inline keyboard
-            bot.send_document(message.chat.id, pdf_file, caption="Here's your PDF file!", reply_markup=keyboard)
+            bot.send_document(message.chat.id, pdf_file, filename="converted_image.pdf", caption="Here's your PDF file!", reply_markup=keyboard)
         else:
             bot.reply_to(message, "Sorry, I couldn't convert your image to PDF. Please try again later.")
 
@@ -76,7 +76,13 @@ def handle_pdf(message):
             file_info = bot.get_file(file_id)
             downloaded_file = bot.download_file(file_info.file_path)
             pdf_files_to_merge.append(io.BytesIO(downloaded_file))
-            bot.reply_to(message, "PDF file received and added to the merge list!")
+
+            # Ask if the user wants to merge immediately after adding a PDF
+            keyboard = InlineKeyboardMarkup()
+            merge_now_button = InlineKeyboardButton("Merge Now", callback_data="merge_now")
+            keyboard.add(merge_now_button)
+            bot.reply_to(message, "PDF file received and added to the merge list! Do you want to merge now?", reply_markup=keyboard)
+
         else:
             bot.reply_to(message, "Please send a PDF file.")
     except Exception as e:
@@ -88,8 +94,7 @@ def handle_callback_query(call):
     """Handles callback queries from inline buttons."""
     try:
         if call.data == "download_pdf":
-            # Resend the PDF file (you might want to store the file ID for efficiency)
-            # For this example, we'll just repeat the conversion process
+            # Resend the PDF file 
             file_id = call.message.document.file_id
             file_info = bot.get_file(file_id)
             downloaded_file = bot.download_file(file_info.file_path)
@@ -99,9 +104,16 @@ def handle_callback_query(call):
             else:
                 bot.answer_callback_query(call.id, "Sorry, I couldn't retrieve the PDF file.")
         elif call.data == "convert_image":
-            # This will guide the user or provide instructions
             bot.send_message(call.message.chat.id, "Please send me the image you want to convert to PDF.") 
         elif call.data == "merge_pdfs":
+            # Send a message with an inline button to start sending PDFs
+            keyboard = InlineKeyboardMarkup()
+            send_pdf_button = InlineKeyboardButton("Send PDFs", callback_data="send_pdfs")
+            keyboard.add(send_pdf_button)
+            bot.send_message(call.message.chat.id, "Please send the PDF files you want to merge.", reply_markup=keyboard)
+        elif call.data == "send_pdfs":
+            bot.send_message(call.message.chat.id, "Start sending your PDF files now!")
+        elif call.data == "merge_now":
             if len(pdf_files_to_merge) < 2:
                 bot.answer_callback_query(call.id, "Please send at least 2 PDF files to merge.")
             else:
@@ -130,4 +142,4 @@ try:
     bot.polling()
 except Exception as e:
     logging.error(f"Bot polling failed: {e}")
-          
+  
