@@ -1,7 +1,7 @@
 import logging
 import os
 from io import BytesIO
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceReply
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ForceReply, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 # --- Replace with your actual bot token ---
-API_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'  # Replace with your actual token
+API_TOKEN = 'YOUR_BOT_TOKEN_HERE'  # Replace with your actual token
 
 # --- Set up logging ---
 logging.basicConfig(
@@ -63,7 +63,6 @@ def build_convert_menu_keyboard():
         [InlineKeyboardButton("PDF to JPG", callback_data='pdf_to_jpg')],
         [InlineKeyboardButton("PDF to PDF/A", callback_data='pdf_to_pdfa')],
         [InlineKeyboardButton("HTML to PDF", callback_data='html_to_pdf')],
-        # ... add other convert options ...
         [InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -79,7 +78,6 @@ def build_organize_menu_keyboard():
         [InlineKeyboardButton("Remove PDF pages", callback_data='remove_pdf_pages')],
         [InlineKeyboardButton("Reorder PDF pages", callback_data='reorder_pdf_pages')],
         [InlineKeyboardButton("Organize PDF pages", callback_data='organize_pdf_pages')],
-        # ... add other organize options ...
         [InlineKeyboardButton("Back to Main Menu", callback_data='main_menu')]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -111,8 +109,21 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- Feature actions ---
     elif query.data == 'pdf_to_word':
         user_states[user_id] = 'pdf_to_word'
-        await query.edit_message_text(text="Please upload the PDF file you want to convert to Word.", reply_markup=ForceReply())
-    # ... (Add other feature actions - pdf_to_excel, merge_pdf, etc.) ...
+        await query.edit_message_text(
+            text="Please upload the PDF file you want to convert to Word.",
+            reply_markup=ForceReply(force_reply=True, input_field_placeholder="Upload PDF")
+        )
+    elif query.data == 'merge_pdf':
+        user_states[user_id] = 'merge_pdf'
+        await query.edit_message_text(text="Please upload the first PDF file you want to merge.", reply_markup=ForceReply())
+        return UPLOAD_PDF  # Enter the conversation state to handle multiple file uploads
+    elif query.data == 'split_pdf':
+        user_states[user_id] = 'split_pdf'
+        await query.edit_message_text(text="Please upload the PDF file you want to split.", reply_markup=ForceReply())
+    elif query.data == 'rotate_pdf':
+        user_states[user_id] = 'rotate_pdf'
+        await query.edit_message_text(text="Please upload the PDF file you want to rotate.", reply_markup=ForceReply())
+    # ... (Add other feature actions - pdf_to_excel, etc.) ...
 
 
 # --- Conversation handler for multi-file uploads (e.g., merge_pdf) ---
@@ -121,7 +132,6 @@ async def upload_pdf(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handles the first PDF upload in a multi-file upload process."""
     user_id = update.message.from_user.id
     file = await update.message.document.get_file()
-    # ... (Download the file and store it in memory) ...
     context.user_data['pdf1'] = BytesIO(await file.download_as_bytearray())
     await update.message.reply_text("Please upload the second PDF file.")
     return UPLOAD_PDF_2  # Move to the next state to get the second file
@@ -130,10 +140,8 @@ async def upload_pdf_2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """Handles the second PDF upload in a multi-file upload process."""
     user_id = update.message.from_user.id
     file = await update.message.document.get_file()
-    # ... (Download the file and store it in memory) ...
     context.user_data['pdf2'] = BytesIO(await file.download_as_bytearray())
 
-    # --- Now you have both files, proceed with the merge operation ---
     await update.message.reply_text("Merging your PDF files...")
     try:
         merger = PdfMerger()
@@ -160,21 +168,42 @@ async def handle_pdf_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
         action = user_states[user_id]
         file = await update.message.document.get_file()
         pdf_data = BytesIO(await file.download_as_bytearray())
+        context.user_data['pdf_data'] = pdf_data  # Store PDF data in user_data
 
         try:
             if action == 'pdf_to_word':
                 await update.message.reply_text("This feature is not yet implemented. We are working on it!")
-                # --- PDF to Word conversion is complex and requires advanced libraries
-                # You might need to use OCR and other techniques for accurate conversion
-                # Consider using libraries like 'pdfminer' or 'pytesseract' for OCR
 
-            # ... (Add other feature actions - pdf_to_excel, rotate_pdf, etc.) ...
+            elif action == 'split_pdf':
+                await update.message.reply_text("Splitting your PDF file...")
+                try:
+                    pdf_reader = PdfReader(pdf_data)
+                    for i in range(len(pdf_reader.pages)):
+                        pdf_writer = PdfWriter()
+                        pdf_writer.add_page(pdf_reader.pages[i])
+                        output_buffer = BytesIO()
+                        pdf_writer.write(output_buffer)
+                        output_buffer.seek(0)
+                        await update.message.reply_document(output_buffer, filename=f"split_{i+1}.pdf")
+                except Exception as e:
+                    logging.error(f"Error splitting PDF: {e}")
+                    await update.message.reply_text("An error occurred while splitting your PDF.")
+
+            elif action == 'rotate_pdf':
+                await update.message.reply_text(
+                    "Please enter the rotation angle (90, 180, or 270 degrees):",
+                    reply_markup=ReplyKeyboardMarkup([['90'], ['180'], ['270']], one_time_keyboard=True)
+                )
+                user_states[user_id] = 'rotate_pdf_angle'  # Move to the next state to get the angle
+
+            # ... (Add other feature actions - pdf_to_excel, etc.) ...
 
         except Exception as e:
             logging.error(f"Error processing PDF: {e}")
             await update.message.reply_text("An error occurred while processing your PDF.")
 
-        del user_states[user_id]  # Clear the user's state
+        if action not in ('rotate_pdf', 'rotate_pdf_angle'):  # Don't delete state for rotate operation yet
+            del user_states[user_id]  # Clear the user's state
 
 
 async def handle_rotation_angle(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -183,9 +212,7 @@ async def handle_rotation_angle(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         angle = int(update.message.text)  # Get the angle from the user's message
         if angle in (90, 180, 270):
-            # ... (Get the original PDF data from user_data or previous step) ...
-            # For example, if you stored it in the previous handler:
-            pdf_data = context.user_data.get('pdf_data') 
+            pdf_data = context.user_data.get('pdf_data')
             if pdf_data:
                 pdf_reader = PdfReader(pdf_data)
                 pdf_writer = PdfWriter()
@@ -195,7 +222,11 @@ async def handle_rotation_angle(update: Update, context: ContextTypes.DEFAULT_TY
                 output_buffer = BytesIO()
                 pdf_writer.write(output_buffer)
                 output_buffer.seek(0)
-                await update.message.reply_document(output_buffer, filename="rotated.pdf")
+                await update.message.reply_document(
+                    document=output_buffer,
+                    filename="rotated.pdf",
+                    reply_markup=ReplyKeyboardRemove()  # Remove the reply keyboard
+                )
             else:
                 await update.message.reply_text("Please upload the PDF file first.")
         else:
