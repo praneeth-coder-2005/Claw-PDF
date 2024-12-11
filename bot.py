@@ -10,7 +10,7 @@ logging.basicConfig(filename='telegram_bot.log', level=logging.ERROR,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M)
+bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
 
 # Global list to store PDF files for merging
 pdf_files_to_merge = []
