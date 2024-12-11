@@ -8,6 +8,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
     CallbackContext,
+    Dispatcher,
 )
 import img2pdf
 
@@ -66,7 +67,8 @@ def convert_image(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater(BOT_TOKEN)  # Removed use_context=True
+    dispatcher = Dispatcher(None, None, workers=0) # Initialize dispatcher
+    updater = Updater(BOT_TOKEN, dispatcher=dispatcher)  # Pass dispatcher to Updater
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
