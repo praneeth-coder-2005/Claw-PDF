@@ -1,5 +1,5 @@
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from PIL import Image
 import io
 import logging
@@ -9,7 +9,7 @@ logging.basicConfig(filename='telegram_bot.log', level=logging.ERROR,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
+bot = telebot.TeleBot('YOUR_BOT_TOKEN')
 
 def create_pdf(image_file):
     """Converts an image file to a PDF file."""
@@ -22,6 +22,18 @@ def create_pdf(image_file):
     except Exception as e:
         logging.error(f"Error converting image to PDF: {e}")
         return None
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    """Sends a welcome message with an inline button to trigger image conversion."""
+    keyboard = InlineKeyboardMarkup()
+    convert_button = InlineKeyboardButton("Convert Image to PDF", callback_data="convert_image")
+    keyboard.add(convert_button)
+    
+    # You can add more buttons or text to the welcome message
+    bot.reply_to(message, "Hello! I can convert images to PDF files. \n\n"
+                          "Just send me an image, and I'll do the rest.", reply_markup=keyboard)
+
 
 @bot.message_handler(content_types=['photo'])
 def handle_image(message):
@@ -67,6 +79,9 @@ def handle_callback_query(call):
                 bot.send_document(call.message.chat.id, pdf_file, caption="Here's your PDF file again!")
             else:
                 bot.answer_callback_query(call.id, "Sorry, I couldn't retrieve the PDF file.")
+        elif call.data == "convert_image":
+            # This will guide the user or provide instructions
+            bot.send_message(call.message.chat.id, "Please send me the image you want to convert to PDF.") 
     except Exception as e:
         logging.error(f"Error handling callback query: {e}")
         bot.answer_callback_query(call.id, "Sorry, something went wrong.")
@@ -76,4 +91,4 @@ try:
     bot.polling()
 except Exception as e:
     logging.error(f"Bot polling failed: {e}")
-            
+          
