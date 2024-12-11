@@ -2,18 +2,25 @@ import logging
 import os
 from io import BytesIO
 from telegram import Update, ForceReply
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import (
+    Updater,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    CallbackContext,
+)
 import img2pdf
 
 # Enable logging
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
 
-# Replace 'YOUR_BOT_TOKEN' with your actual bot token
-BOT_TOKEN = '7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M'
+# Bot token 
+BOT_TOKEN = "7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M"
+
 
 # Define a few command handlers. These usually take the two arguments update and
 # context.
@@ -21,13 +28,15 @@ def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
     update.message.reply_markdown_v2(
-        fr'Hi {user.mention_markdown_v2()}\!',
+        fr"Hi {user.mention_markdown_v2()}!",
         reply_markup=ForceReply(selective=True),
     )
 
+
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
+    update.message.reply_text("Help!")
+
 
 def convert_image(update: Update, context: CallbackContext) -> None:
     """Convert an image to PDF and send it back to the user."""
@@ -50,8 +59,9 @@ def convert_image(update: Update, context: CallbackContext) -> None:
     update.message.reply_document(
         document=pdf_bytes,
         filename="converted.pdf",
-        caption="Here is your converted PDF file."
+        caption="Here is your converted PDF file.",
     )
+
 
 def main() -> None:
     """Start the bot."""
@@ -66,7 +76,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("help", help_command))
 
     # on non command i.e message - convert the image to pdf
-    dispatcher.add_handler(MessageHandler(Filters.photo, convert_image))
+    dispatcher.add_handler(MessageHandler(filters.PHOTO, convert_image))
 
     # Start the Bot
     updater.start_polling()
@@ -76,6 +86,6 @@ def main() -> None:
     # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
-  
