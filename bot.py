@@ -10,7 +10,7 @@ logging.basicConfig(filename='telegram_bot.log', level=logging.ERROR,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Replace 'YOUR_BOT_TOKEN' with your actual bot token
-bot = telebot.TeleBot('7913483326:AAGWXALKIt9DJ_gemT8EpC5h_yKWUCzH37M')
+bot = telebot.TeleBot('YOUR_BOT_TOKEN')
 
 # Global list to store PDF files for merging
 pdf_files_to_merge = []
@@ -75,7 +75,10 @@ def handle_pdf(message):
             file_id = message.document.file_id
             file_info = bot.get_file(file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-            pdf_files_to_merge.append(io.BytesIO(downloaded_file))
+
+            # Use io.BytesIO to handle the downloaded file
+            pdf_file = io.BytesIO(downloaded_file) 
+            pdf_files_to_merge.append(pdf_file)
 
             # Ask if the user wants to merge immediately after adding a PDF
             keyboard = InlineKeyboardMarkup()
@@ -124,8 +127,8 @@ def handle_callback_query(call):
 
                     merged_pdf = io.BytesIO()
                     merger.write(merged_pdf)
-                    merger.close()
-                    merged_pdf.seek(0)
+                    # No need to close the merger when using in-memory streams
+                    merged_pdf.seek(0)  # Reset the file pointer to the beginning
 
                     bot.send_document(call.message.chat.id, merged_pdf, caption="Here's your merged PDF!")
                     pdf_files_to_merge.clear()  # Clear the list after merging
@@ -142,4 +145,4 @@ try:
     bot.polling()
 except Exception as e:
     logging.error(f"Bot polling failed: {e}")
-  
+      
