@@ -8,10 +8,8 @@ from telegram.ext import (
     MessageHandler,
     filters,
     CallbackContext,
-    Dispatcher,
 )
 import img2pdf
-from queue import Queue
 
 # Enable logging
 logging.basicConfig(
@@ -68,11 +66,9 @@ def convert_image(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    update_queue = Queue()  # Create update queue
-    dispatcher = Dispatcher(None, update_queue, workers=0)  # Initialize dispatcher with update queue
-    updater = Updater(BOT_TOKEN, dispatcher=dispatcher)  # Pass dispatcher to Updater
+    updater = Updater(BOT_TOKEN)
 
-    # Get the dispatcher to register handlers
+    # Access the dispatcher
     dispatcher = updater.dispatcher
 
     # on different commands - answer in Telegram
