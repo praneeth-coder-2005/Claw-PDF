@@ -47,29 +47,32 @@ async def compress_pdf_callback(client: Client, callback_query):
     await callback_query.answer()
     await callback_query.message.reply_text("Send me a PDF file to compress.")
 
-@app.on_message(filters.document & filters.mime_type("application/pdf"))  # Fixed line
+@app.on_message(filters.document)
 async def compress_pdf(client: Client, message: Message):
-    try:
-        # Download the PDF
-        with tempfile.TemporaryDirectory() as tempdir:
-            pdf_path = await app.download_media(message, file_name=os.path.join(tempdir, "input.pdf"))
+    if message.document.mime_type == "application/pdf":
+        try:
+            # Download the PDF
+            with tempfile.TemporaryDirectory() as tempdir:
+                pdf_path = await app.download_media(message, file_name=os.path.join(tempdir, "input.pdf"))
 
-            # Compress the PDF
-            compressed_pdf_path = os.path.join(tempdir, "output.pdf")
-            with open(pdf_path, "rb") as pdf_file, open(compressed_pdf_path, "wb") as compressed_pdf_file:
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                pdf_writer = PyPDF2.PdfWriter()
+                # Compress the PDF
+                compressed_pdf_path = os.path.join(tempdir, "output.pdf")
+                with open(pdf_path, "rb") as pdf_file, open(compressed_pdf_path, "wb") as compressed_pdf_file:
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    pdf_writer = PyPDF2.PdfWriter()
 
-                for page in pdf_reader.pages:
-                    pdf_writer.add_page(page)
+                    for page in pdf_reader.pages:
+                        pdf_writer.add_page(page)
 
-                pdf_writer.write(compressed_pdf_file)
+                    pdf_writer.write(compressed_pdf_file)
 
-            # Send the compressed PDF
-            await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
+                # Send the compressed PDF
+                await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
 
-    except Exception as e:
-        await message.reply_text(f"Error: {e}")
+        except Exception as e:
+            await message.reply_text(f"Error: {e}")
+    else:
+        await message.reply_text("Please send a PDF file.")
 
 app.run()
-    
+            
