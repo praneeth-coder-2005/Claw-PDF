@@ -103,11 +103,9 @@ async def remove_pdf_pages_callback(client: Client, callback_query):
 @app.on_message(filters.document)
 async def handle_pdf_for_page_removal(client: Client, message: Message):
     user_id = message.from_user.id
-    if user_id in user_states and user_states[
-            user_id] == "waiting_for_pdf":
+    if user_id in user_states and user_states[user_id] == "waiting_for_pdf":
         if message.document.mime_type == "application/pdf":
             try:
-                # Download the PDF
                 with tempfile.TemporaryDirectory() as tempdir:
                     pdf_path = await app.download_media(
                         message, file_name=os.path.join(tempdir, "input.pdf"))
@@ -133,9 +131,7 @@ async def handle_page_numbers(client: Client, message: Message):
        user_states[user_id]["state"] == "waiting_for_page_numbers":
         try:
             pdf_path = user_states[user_id]["pdf_path"]
-
             page_numbers_to_remove =
-
             page_numbers_str = message.text.strip()
             try:
                 for part in page_numbers_str.split(","):
@@ -148,20 +144,16 @@ async def handle_page_numbers(client: Client, message: Message):
                 await message.reply_text("Invalid page numbers format.")
                 return
 
-            # Remove pages from the PDF
             output_pdf_path = os.path.join(tempfile.gettempdir(), "output.pdf")
             with open(pdf_path, "rb") as pdf_file, open(output_pdf_path,
                                                         "wb") as output_pdf_file:
                 pdf_reader = PyPDF2.PdfReader(pdf_file)
                 pdf_writer = PyPDF2.PdfWriter()
-
                 for page_num in range(len(pdf_reader.pages)):
                     if page_num + 1 not in page_numbers_to_remove:
                         pdf_writer.add_page(pdf_reader.pages[page_num])
-
                 pdf_writer.write(output_pdf_file)
 
-            # Send the modified PDF
             await message.reply_document(output_pdf_path,
                                         caption="Here's your PDF with pages removed.")
 
@@ -172,4 +164,4 @@ async def handle_page_numbers(client: Client, message: Message):
 
 
 app.run()
-            
+    
