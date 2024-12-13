@@ -1,3 +1,8 @@
+import os
+import tempfile
+
+from pdf2image import convert_from_path
+from PIL import Image
 from pyrogram import Client, filters
 from pyrogram.types import Message
 
@@ -7,18 +12,24 @@ app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
-    await message.reply_text("Hello! I'm your bot.")
+    await message.reply_text("Hello! I'm your bot. Send me an image to convert it to PDF.")
 
-@app.on_message(filters.command("help"))
-async def help_command(client: Client, message: Message):
-    await message.reply_text("Available commands:\n/start - Start the bot\n/help - Show this help message")
+@app.on_message(filters.photo)
+async def image_to_pdf(client: Client, message: Message):
+    try:
+        # Download the image
+        with tempfile.TemporaryDirectory() as tempdir:
+            image_path = await app.download_media(message, file_name=os.path.join(tempdir, "input.jpg"))
 
-@app.on_message(filters.command)
-async def handle_unknown_command(client: Client, message: Message):
-    await message.reply_text("Unknown command. Use /help to see available commands.")
+            # Convert image to PDF
+            pdf_path = os.path.join(tempdir, "output.pdf")
+            image = Image.open(image_path)
+            image.save(pdf_path, "PDF", resolution=100.0)
 
-@app.on_message(filters.text)
-async def echo(client: Client, message: Message):
-    await message.reply_text(message.text)
+            # Send the PDF
+            await message.reply_document(pdf_path, caption="Here's your PDF file.")
+
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
 
 app.run()
