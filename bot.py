@@ -47,7 +47,7 @@ async def compress_pdf_callback(client: Client, callback_query):
     await callback_query.answer()
     await callback_query.message.reply_text("Send me a PDF file to compress.")
 
-@app.on_message(filters.document(mime_type="application/pdf"))
+@app.on_message(filters.document & filters.mime_type("application/pdf"))  # Fixed line
 async def compress_pdf(client: Client, message: Message):
     try:
         # Download the PDF
@@ -72,3 +72,4 @@ async def compress_pdf(client: Client, message: Message):
         await message.reply_text(f"Error: {e}")
 
 app.run()
+    
