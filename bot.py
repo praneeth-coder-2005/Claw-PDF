@@ -13,7 +13,11 @@ async def start_command(client: Client, message: Message):
 async def help_command(client: Client, message: Message):
     await message.reply_text("Available commands:\n/start - Start the bot\n/help - Show this help message")
 
-@app.on_message(filters.incoming & filters.text & ~filters.command)
+@app.on_message(filters.command)
+async def handle_unknown_command(client: Client, message: Message):
+    await message.reply_text("Unknown command. Use /help to see available commands.")
+
+@app.on_message(filters.text)
 async def echo(client: Client, message: Message):
     await message.reply_text(message.text)
 
