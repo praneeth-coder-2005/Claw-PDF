@@ -4,6 +4,7 @@ import tempfile
 from PIL import Image
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+import PyPDF2
 
 from config import API_ID, API_HASH, BOT_TOKEN
 
@@ -13,7 +14,8 @@ app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 async def start_command(client: Client, message: Message):
     # Create inline keyboard
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("Image to PDF", callback_data="image_to_pdf")]
+        [InlineKeyboardButton("Image to PDF", callback_data="image_to_pdf")],
+        [InlineKeyboardButton("Compress PDF", callback_data="compress_pdf")]
     ])
     await message.reply_text("Hello! I'm your bot. Choose an option:", reply_markup=keyboard)
 
@@ -36,6 +38,35 @@ async def image_to_pdf(client: Client, message: Message):
 
             # Send the PDF
             await message.reply_document(pdf_path, caption="Here's your PDF file.")
+
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
+
+@app.on_callback_query(filters.regex("compress_pdf"))
+async def compress_pdf_callback(client: Client, callback_query):
+    await callback_query.answer()
+    await callback_query.message.reply_text("Send me a PDF file to compress.")
+
+@app.on_message(filters.document(mime_type="application/pdf"))
+async def compress_pdf(client: Client, message: Message):
+    try:
+        # Download the PDF
+        with tempfile.TemporaryDirectory() as tempdir:
+            pdf_path = await app.download_media(message, file_name=os.path.join(tempdir, "input.pdf"))
+
+            # Compress the PDF
+            compressed_pdf_path = os.path.join(tempdir, "output.pdf")
+            with open(pdf_path, "rb") as pdf_file, open(compressed_pdf_path, "wb") as compressed_pdf_file:
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+                pdf_writer = PyPDF2.PdfWriter()
+
+                for page in pdf_reader.pages:
+                    pdf_writer.add_page(page)
+
+                pdf_writer.write(compressed_pdf_file)
+
+            # Send the compressed PDF
+            await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
 
     except Exception as e:
         await message.reply_text(f"Error: {e}")
