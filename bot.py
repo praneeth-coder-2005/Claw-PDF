@@ -132,7 +132,10 @@ async def handle_page_numbers(client: Client, message: Message):
         try:
             pdf_path = user_states[user_id]["pdf_path"]
             page_numbers_str = message.text.strip()
-            page_numbers_to_remove =  # Initialize the list here
+
+            # Initialize page_numbers_to_remove inside the outer try block
+            page_numbers_to_remove = []  
+
             try:
                 for part in page_numbers_str.split(","):
                     if "-" in part:
@@ -164,4 +167,3 @@ async def handle_page_numbers(client: Client, message: Message):
 
 
 app.run()
-    
