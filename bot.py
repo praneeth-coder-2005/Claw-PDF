@@ -63,7 +63,8 @@ async def compress_pdf(client: Client, message: Message):
 
                 # Compress the PDF
                 compressed_pdf_path = os.path.join(tempdir, "output.pdf")
-                with open(pdf_path, "rb") as pdf_file, open(compressed_pdf_path, "wb") as compressed_pdf_file:
+                with open(pdf_path, "rb") as pdf_file, open(compressed_pdf_path,
+                        "wb") as compressed_pdf_file:
                     pdf_reader = PyPDF2.PdfReader(pdf_file)
                     pdf_writer = PyPDF2.PdfWriter()
 
@@ -93,7 +94,7 @@ async def remove_pdf_pages(client: Client, message: Message):
     if message.document.mime_type == "application/pdf":
         try:
             # Get page numbers to remove from caption
-            page_numbers_to_remove =
+            page_numbers_to_remove = []  # Initialize here
             if message.caption:
                 page_numbers_str = message.caption.strip()
                 try:
@@ -133,4 +134,4 @@ async def remove_pdf_pages(client: Client, message: Message):
 
 
 app.run()
-    
+        
