@@ -60,7 +60,7 @@ async def compress_pdf_callback(client: Client, callback_query):
     await callback_query.message.reply_text("Send me a PDF file to compress.")
 
 
-@app.on_message(filters.document)  # Removed ~filters.edited
+@app.on_message(filters.document)
 async def compress_pdf(client: Client, message: Message):
     if message.document.mime_type == "application/pdf":
         try:
@@ -100,7 +100,7 @@ async def remove_pdf_pages_callback(client: Client, callback_query):
         "Please send me the PDF file from which you want to remove pages.")
 
 
-@app.on_message(filters.document)  # Removed ~filters.edited
+@app.on_message(filters.document)
 async def handle_pdf_for_page_removal(client: Client, message: Message):
     user_id = message.from_user.id
     if user_id in user_states and user_states[
@@ -126,7 +126,7 @@ async def handle_pdf_for_page_removal(client: Client, message: Message):
             del user_states[user_id]
 
 
-@app.on_message(filters.text & ~filters.edited)
+@app.on_message(filters.text)
 async def handle_page_numbers(client: Client, message: Message):
     user_id = message.from_user.id
     if user_id in user_states and isinstance(user_states[user_id], dict) and \
@@ -134,7 +134,7 @@ async def handle_page_numbers(client: Client, message: Message):
         try:
             pdf_path = user_states[user_id]["pdf_path"]
 
-            page_numbers_to_remove = []
+            page_numbers_to_remove =
 
             page_numbers_str = message.text.strip()
             try:
@@ -172,4 +172,4 @@ async def handle_page_numbers(client: Client, message: Message):
 
 
 app.run()
-        
+            
