@@ -13,6 +13,7 @@ app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 user_states = {}
 
+
 @app.on_message(filters.command("start"))
 async def start_command(client: Client, message: Message):
     keyboard = InlineKeyboardMarkup([
@@ -23,15 +24,18 @@ async def start_command(client: Client, message: Message):
     ])
     await message.reply_text("Hello! I'm your bot. Choose an option:", reply_markup=keyboard)
 
+
 @app.on_callback_query(filters.regex("image_to_pdf"))
 async def image_to_pdf_callback(client: Client, callback_query):
     await callback_query.answer()
     await callback_query.message.reply_text("Send me an image to convert it to PDF.")
 
+
 @app.on_callback_query(filters.regex("compress_pdf"))
 async def compress_pdf_callback(client: Client, callback_query):
     await callback_query.answer()
     await callback_query.message.reply_text("Send me a PDF file to compress.")
+
 
 @app.on_callback_query(filters.regex("remove_pdf_pages"))
 async def remove_pdf_pages_callback(client: Client, callback_query):
@@ -40,10 +44,12 @@ async def remove_pdf_pages_callback(client: Client, callback_query):
     user_states[user_id] = "waiting_for_pdf"
     await callback_query.message.reply_text("Please send me the PDF file from which you want to remove pages.")
 
+
 @app.on_callback_query(filters.regex("image_to_telegraph"))
 async def image_to_telegraph_callback(client: Client, callback_query):
     await callback_query.answer()
     await callback_query.message.reply_text("Send me an image to upload to Telegraph.")
+
 
 @app.on_message(filters.photo)
 async def handle_photo(client: Client, message: Message):
@@ -52,6 +58,7 @@ async def handle_photo(client: Client, message: Message):
         await handle_pdf_for_page_removal(client, message)
     else:
         await image_to_telegraph(client, message)
+
 
 @app.on_message(filters.document)
 async def handle_document(client: Client, message: Message):
@@ -64,6 +71,7 @@ async def handle_document(client: Client, message: Message):
     else:
         await message.reply_text("Please send a PDF file for compression or an image for uploading to Telegraph.")
 
+
 async def image_to_pdf(client: Client, message: Message):
     try:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -74,6 +82,7 @@ async def image_to_pdf(client: Client, message: Message):
             await message.reply_document(pdf_path, caption="Here's your PDF file.")
     except Exception as e:
         await message.reply_text(f"Error: {e}")
+
 
 async def compress_pdf(client: Client, message: Message):
     try:
@@ -89,6 +98,7 @@ async def compress_pdf(client: Client, message: Message):
             await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
     except Exception as e:
         await message.reply_text(f"Error: {e}")
+
 
 @app.on_message(filters.text)
 async def handle_page_numbers(client: Client, message: Message):
@@ -126,18 +136,19 @@ async def handle_page_numbers(client: Client, message: Message):
         finally:
             del user_states[user_id]
 
+
 async def image_to_telegraph(client: Client, message: Message):
     try:
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
             await app.download_media(message, file_name=temp_file.name)
-            
-            # Upload the image to Telegraph
             response = upload_file(temp_file.name)
             
-            # Access the first element of the response, which is a list
-            image_url = "https://telegra.ph" + response[0] 
-
-            await message.reply_text(f"Here's your Telegraph image URL: {image_url}")
+            # Check if the response is a list and has at least one element
+            if isinstance(response, list) and len(response) > 0:  
+                image_url = "https://telegra.ph" + response[0]
+                await message.reply_text(f"Here's your Telegraph image URL: {image_url}")
+            else:
+                await message.reply_text("Error uploading image to Telegraph. Please try again later.")
 
     except Exception as e:
         await message.reply_text(f"Error: {e}")
@@ -145,4 +156,4 @@ async def image_to_telegraph(client: Client, message: Message):
         os.remove(temp_file.name)
 
 app.run()
-    
+                
