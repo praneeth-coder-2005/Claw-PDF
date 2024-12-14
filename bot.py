@@ -143,12 +143,12 @@ async def image_to_telegraph(client: Client, message: Message):
             await app.download_media(message, file_name=temp_file.name)
             response = upload_file(temp_file.name)
             
-            # Check if the response is a list and has at least one element
-            if isinstance(response, list) and len(response) > 0:  
+            # Robustly handle the response from upload_file
+            if isinstance(response, (list, tuple)) and len(response) > 0 and isinstance(response[0], str):
                 image_url = "https://telegra.ph" + response[0]
                 await message.reply_text(f"Here's your Telegraph image URL: {image_url}")
             else:
-                await message.reply_text("Error uploading image to Telegraph. Please try again later.")
+                await message.reply_text("Error uploading image to Telegraph. Unexpected response.")
 
     except Exception as e:
         await message.reply_text(f"Error: {e}")
@@ -156,4 +156,3 @@ async def image_to_telegraph(client: Client, message: Message):
         os.remove(temp_file.name)
 
 app.run()
-                
