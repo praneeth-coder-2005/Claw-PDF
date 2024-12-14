@@ -5,6 +5,7 @@ from PIL import Image
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 import PyPDF2
+from telegraph import upload_file
 
 from config import API_ID, API_HASH, BOT_TOKEN
 
@@ -20,11 +21,10 @@ async def start_command(client: Client, message: Message):
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("Image to PDF", callback_data="image_to_pdf")],
         [InlineKeyboardButton("Compress PDF", callback_data="compress_pdf")],
-        [InlineKeyboardButton("Remove PDF Pages",
-                              callback_data="remove_pdf_pages")]
+        [InlineKeyboardButton("Remove PDF Pages", callback_data="remove_pdf_pages")],
+        [InlineKeyboardButton("Image to Telegraph", callback_data="image_to_telegraph")]
     ])
-    await message.reply_text("Hello! I'm your bot. Choose an option:",
-                            reply_markup=keyboard)
+    await message.reply_text("Hello! I'm your bot. Choose an option:", reply_markup=keyboard)
 
 
 @app.on_callback_query(filters.regex("image_to_pdf"))
@@ -47,8 +47,7 @@ async def image_to_pdf(client: Client, message: Message):
             image.save(pdf_path, "PDF", resolution=100.0)
 
             # Send the PDF
-            await message.reply_document(pdf_path,
-                                        caption="Here's your PDF file.")
+            await message.reply_document(pdf_path, caption="Here's your PDF file.")
 
     except Exception as e:
         await message.reply_text(f"Error: {e}")
@@ -82,8 +81,7 @@ async def compress_pdf(client: Client, message: Message):
                     pdf_writer.write(compressed_pdf_file)
 
                 # Send the compressed PDF
-                await message.reply_document(compressed_pdf_path,
-                                            caption="Here's your compressed PDF file.")
+                await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
 
         except Exception as e:
             await message.reply_text(f"Error: {e}")
@@ -148,8 +146,7 @@ async def handle_page_numbers(client: Client, message: Message):
                 return
 
             output_pdf_path = os.path.join(tempfile.gettempdir(), "output.pdf")
-            with open(pdf_path, "rb") as pdf_file, open(output_pdf_path,
-                                                        "wb") as output_pdf_file:
+            with open(pdf_path, "rb") as pdf_file, open(output_pdf_path, "wb") as output_pdf_file:
                 pdf_reader = PyPDF2.PdfReader(pdf_file)
                 pdf_writer = PyPDF2.PdfWriter()
                 for page_num in range(len(pdf_reader.pages)):
@@ -157,8 +154,7 @@ async def handle_page_numbers(client: Client, message: Message):
                         pdf_writer.add_page(pdf_reader.pages[page_num])
                 pdf_writer.write(output_pdf_file)
 
-            await message.reply_document(output_pdf_path,
-                                        caption="Here's your PDF with pages removed.")
+            await message.reply_document(output_pdf_path, caption="Here's your PDF with pages removed.")
 
         except Exception as e:
             await message.reply_text(f"Error: {e}")
@@ -166,4 +162,32 @@ async def handle_page_numbers(client: Client, message: Message):
             del user_states[user_id]
 
 
+@app.on_callback_query(filters.regex("image_to_telegraph"))
+async def image_to_telegraph_callback(client: Client, callback_query):
+    await callback_query.answer()
+    await callback_query.message.reply_text("Send me an image to upload to Telegraph.")
+
+
+@app.on_message(filters.photo)
+async def image_to_telegraph(client: Client, message: Message):
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
+            # Download the image to a temporary file
+            await app.download_media(message, file_name=temp_file.name)
+
+            # Upload the image to Telegraph
+            response = upload_file(temp_file.name)
+            image_url = "https://telegra.ph" + response[0]
+
+            # Send the Telegraph URL
+            await message.reply_text(f"Here's your Telegraph image URL: {image_url}")
+
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
+    finally:
+        # Clean up the temporary file
+        os.remove(temp_file.name)
+
+
 app.run()
+    
