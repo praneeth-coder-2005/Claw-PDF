@@ -130,13 +130,19 @@ async def image_to_telegraph(client: Client, message: Message):
     try:
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
             await app.download_media(message, file_name=temp_file.name)
+            
+            # Upload the image to Telegraph
             response = upload_file(temp_file.name)
-            image_url = "https://telegra.ph" + response[0]
+            
+            # Access the first element of the response, which is a list
+            image_url = "https://telegra.ph" + response[0] 
+
             await message.reply_text(f"Here's your Telegraph image URL: {image_url}")
+
     except Exception as e:
         await message.reply_text(f"Error: {e}")
     finally:
         os.remove(temp_file.name)
 
 app.run()
-                          
+    
