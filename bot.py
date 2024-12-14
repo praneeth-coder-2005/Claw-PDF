@@ -7,7 +7,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 import PyPDF2
 from telegraph import upload_file
 
-from config import API_ID, API_HASH, BOT_TOKEN
+from config import API_ID, API_HASH, BOT_TOKEN, GOOGLE_API_KEY
 
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -33,7 +33,48 @@ async def image_to_pdf_callback(client: Client, callback_query):
     await callback_query.message.reply_text("Send me an image to convert it to PDF.")
 
 
+@app.on_callback_query(filters.regex("compress_pdf"))
+async def compress_pdf_callback(client: Client, callback_query):
+    await callback_query.answer()
+    await callback_query.message.reply_text("Send me a PDF file to compress.")
+
+
+@app.on_callback_query(filters.regex("remove_pdf_pages"))
+async def remove_pdf_pages_callback(client: Client, callback_query):
+    await callback_query.answer()
+    user_id = callback_query.from_user.id
+    user_states[user_id] = "waiting_for_pdf"
+    await callback_query.message.reply_text(
+        "Please send me the PDF file from which you want to remove pages.")
+
+
+@app.on_callback_query(filters.regex("image_to_telegraph"))
+async def image_to_telegraph_callback(client: Client, callback_query):
+    await callback_query.answer()
+    await callback_query.message.reply_text("Send me an image to upload to Telegraph.")
+
+
 @app.on_message(filters.photo)
+async def handle_photo(client: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id in user_states and user_states[user_id] == "waiting_for_pdf":
+        await handle_pdf_for_page_removal(client, message)  # Use the existing handler for page removal
+    else:
+        await image_to_telegraph(client, message)  # Otherwise, upload to Telegraph
+
+
+@app.on_message(filters.document)
+async def handle_document(client: Client, message: Message):
+    if message.document.mime_type == "application/pdf":
+        user_id = message.from_user.id
+        if user_id in user_states and user_states[user_id] == "waiting_for_pdf":
+            await handle_pdf_for_page_removal(client, message)  # Use the existing handler for page removal
+        else:
+            await compress_pdf(client, message)  # Otherwise, compress the PDF
+    else:
+        await message.reply_text("Please send a PDF file for compression or an image for uploading to Telegraph.")
+
+
 async def image_to_pdf(client: Client, message: Message):
     try:
         # Download the image
@@ -53,73 +94,30 @@ async def image_to_pdf(client: Client, message: Message):
         await message.reply_text(f"Error: {e}")
 
 
-@app.on_callback_query(filters.regex("compress_pdf"))
-async def compress_pdf_callback(client: Client, callback_query):
-    await callback_query.answer()
-    await callback_query.message.reply_text("Send me a PDF file to compress.")
-
-
-@app.on_message(filters.document)
 async def compress_pdf(client: Client, message: Message):
-    if message.document.mime_type == "application/pdf":
-        try:
-            # Download the PDF
-            with tempfile.TemporaryDirectory() as tempdir:
-                pdf_path = await app.download_media(
-                    message, file_name=os.path.join(tempdir, "input.pdf"))
+    try:
+        # Download the PDF
+        with tempfile.TemporaryDirectory() as tempdir:
+            pdf_path = await app.download_media(
+                message, file_name=os.path.join(tempdir, "input.pdf"))
 
-                # Compress the PDF
-                compressed_pdf_path = os.path.join(tempdir, "output.pdf")
-                with open(pdf_path, "rb") as pdf_file, open(
-                        compressed_pdf_path, "wb") as compressed_pdf_file:
-                    pdf_reader = PyPDF2.PdfReader(pdf_file)
-                    pdf_writer = PyPDF2.PdfWriter()
+            # Compress the PDF
+            compressed_pdf_path = os.path.join(tempdir, "output.pdf")
+            with open(pdf_path, "rb") as pdf_file, open(
+                    compressed_pdf_path, "wb") as compressed_pdf_file:
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+                pdf_writer = PyPDF2.PdfWriter()
 
-                    for page in pdf_reader.pages:
-                        pdf_writer.add_page(page)
+                for page in pdf_reader.pages:
+                    pdf_writer.add_page(page)
 
-                    pdf_writer.write(compressed_pdf_file)
+                pdf_writer.write(compressed_pdf_file)
 
-                # Send the compressed PDF
-                await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
+            # Send the compressed PDF
+            await message.reply_document(compressed_pdf_path, caption="Here's your compressed PDF file.")
 
-        except Exception as e:
-            await message.reply_text(f"Error: {e}")
-    else:
-        await message.reply_text("Please send a PDF file.")
-
-
-@app.on_callback_query(filters.regex("remove_pdf_pages"))
-async def remove_pdf_pages_callback(client: Client, callback_query):
-    await callback_query.answer()
-    user_id = callback_query.from_user.id
-    user_states[user_id] = "waiting_for_pdf"
-    await callback_query.message.reply_text(
-        "Please send me the PDF file from which you want to remove pages.")
-
-
-@app.on_message(filters.document)
-async def handle_pdf_for_page_removal(client: Client, message: Message):
-    user_id = message.from_user.id
-    if user_id in user_states and user_states[user_id] == "waiting_for_pdf":
-        if message.document.mime_type == "application/pdf":
-            try:
-                with tempfile.TemporaryDirectory() as tempdir:
-                    pdf_path = await app.download_media(
-                        message, file_name=os.path.join(tempdir, "input.pdf"))
-                    user_states[user_id] = {
-                        "state": "waiting_for_page_numbers",
-                        "pdf_path": pdf_path
-                    }
-                    await message.reply_text(
-                        "Please specify the page numbers to remove (e.g., `1, 3-5, 7`)."
-                    )
-            except Exception as e:
-                await message.reply_text(f"Error: {e}")
-                del user_states[user_id]
-        else:
-            await message.reply_text("Please send a PDF file.")
-            del user_states[user_id]
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
 
 
 @app.on_message(filters.text)
@@ -131,8 +129,7 @@ async def handle_page_numbers(client: Client, message: Message):
             pdf_path = user_states[user_id]["pdf_path"]
             page_numbers_str = message.text.strip()
 
-            # Initialize page_numbers_to_remove inside the outer try block
-            page_numbers_to_remove = []  
+            page_numbers_to_remove = []
 
             try:
                 for part in page_numbers_str.split(","):
@@ -162,13 +159,6 @@ async def handle_page_numbers(client: Client, message: Message):
             del user_states[user_id]
 
 
-@app.on_callback_query(filters.regex("image_to_telegraph"))
-async def image_to_telegraph_callback(client: Client, callback_query):
-    await callback_query.answer()
-    await callback_query.message.reply_text("Send me an image to upload to Telegraph.")
-
-
-@app.on_message(filters.photo)
 async def image_to_telegraph(client: Client, message: Message):
     try:
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
